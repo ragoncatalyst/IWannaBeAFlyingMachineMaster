@@ -1,0 +1,38 @@
+# 失败评语配置文件
+# 格式: 结局序号_评语序号 "评语内容"
+# 同一结局序号下的每种评语出现概率相同
+
+# 00 默认结局，不满足其他任何条件
+00_1 "It exploded..."
+00_2 "Oops!"
+00_3 "Mission Failed."
+
+# 01 失败，最终无超速且只与"LaunchingPad"物体接触
+01_1 "Why are we back home?"
+01_2 "Seriously?"
+01_3 "We didn't even leave!"
+
+# 02 失败，最终无超速且与"LaunchingPad"和其他物体接触
+02_1 "We crashed into something on the launch pad!"
+02_2 "Not a smooth takeoff..."
+02_3 "Collision at launch!"
+
+# 03 失败，超速撞击在"LaunchingPad"上，不论是否与其他物体接触
+03_1 "We were going too fast on the launch pad!"
+03_2 "Too much power at launch!"
+03_3 "Speed up too early!"
+
+# 04 失败，超速撞击"LandingPad"
+04_1 "We were going way too fast!"
+04_2 "Slow down before landing!"
+04_3 "Too hot for landing!"
+
+# 05 失败，超速撞击tag为Terrain的物体
+05_1 "We hit the terrain at full speed!"
+05_2 "Crashed into the ground!"
+05_3 "Terrain impact! Too fast!"
+
+# 06 失败，最终无超速且与"LandingPad"和其他物体接触
+06_1 "We couldn't land safely on the pad!"
+06_2 "Hit something on the landing pad!"
+06_3 "Failed to land on target!"
