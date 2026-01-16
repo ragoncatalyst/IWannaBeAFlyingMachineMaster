@@ -1115,8 +1115,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4fbaf9bbb42f00045a5073ab7d04a10e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  mainThrust: 1000
-  rotationThrust: 30
+  mainThrust: 950
+  rotationThrust: 100
   mainEngine: {fileID: 0}
   mainEngineParticles: {fileID: 0}
   leftThrusterParticle: {fileID: 0}
@@ -1282,7 +1282,7 @@ Rigidbody:
   m_UseGravity: 1
   m_IsKinematic: 0
   m_Interpolate: 0
-  m_Constraints: 48
+  m_Constraints: 0
   m_CollisionDetection: 0
 --- !u!1 &589638848173435707
 GameObject:

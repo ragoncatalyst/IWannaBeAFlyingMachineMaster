@@ -258,13 +258,13 @@ public class Movement : MonoBehaviour
         // 计算基于摄像头视角的旋转轴
         Vector3 rotationAxis = CalculateCameraBasedRotationAxis();
         
-        // A键控制左转（逆时针）
+        // A键控制左转
         if (isRotatingLeftThisFrame)
         {
             parentRigidbody.AddTorque(rotationAxis * rotationThrust);
         }
 
-        // D键控制右转（顺时针）
+        // D键控制右转
         if (isRotatingRightThisFrame)
         {
             parentRigidbody.AddTorque(-rotationAxis * rotationThrust);
@@ -272,7 +272,7 @@ public class Movement : MonoBehaviour
     }
     
     // 计算基于摄像头视角的旋转轴
-    // 这个轴垂直于摄像头视平面，但与世界的XZ平面平行
+    // 直接使用从摄像头到火箭的方向作为旋转轴
     Vector3 CalculateCameraBasedRotationAxis()
     {
         // 如果没有摄像头，使用默认旋转轴（火箭的forward轴）
@@ -281,22 +281,21 @@ public class Movement : MonoBehaviour
             return transform.forward;
         }
         
-        // 获取摄像头的右向量（right向量）
-        // 这个向量垂直于摄像头的视线和上方向
-        Vector3 cameraRight = mainCamera.transform.right;
-        
-        // 将这个向量投影到XZ平面（去掉Y分量）
-        Vector3 rotationAxis = new Vector3(cameraRight.x, 0f, cameraRight.z);
+        // 计算从摄像头指向火箭的方向向量
+        Vector3 rotationAxis = transform.position - mainCamera.transform.position;
         
         // 归一化以确保力矩大小一致
         if (rotationAxis.magnitude > 0.01f)
         {
             rotationAxis.Normalize();
+            
+            // 可视化旋转轴（红色）
+            Debug.DrawRay(transform.position, rotationAxis * 5f, Color.red);
+            Debug.DrawRay(transform.position, -rotationAxis * 5f, Color.red);
         }
         else
         {
-            // 如果摄像头直接从上方或下方看，使用世界的X轴作为旋转轴
-            rotationAxis = Vector3.right;
+            rotationAxis = Vector3.forward;
         }
         
         return rotationAxis;

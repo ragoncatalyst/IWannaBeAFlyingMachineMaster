@@ -8,12 +8,11 @@ public class CamaraFollow : MonoBehaviour
     [SerializeField] Transform target; // 要跟随的目标（火箭）
     
     [Header("摄像头距离设置")]
-    [SerializeField] float baseDistance = 12f;    // 基础距离（增加距离减少晃动感）
+    [SerializeField] float baseDistance = 12f;    // 基础距离
     [SerializeField] float minDistance = 5f;      // 最小距离
     [SerializeField] float maxDistance = 25f;     // 最大距离
     [SerializeField] float scrollSensitivity = 2f; // 滚轮灵敏度
     [SerializeField] float heightOffset = 4f;    // 高度偏移
-    [SerializeField] float positionDamping = 0.3f;     // 位置阻尼（使用SmoothDamp）
     
     [Header("鼠标旋转设置")]
     [SerializeField] float mouseSensitivity = 450f;  // 鼠标灵敏度（提升旋转效率）
@@ -29,7 +28,6 @@ public class CamaraFollow : MonoBehaviour
     private float horizontalAngle = 0f;   // 水平旋转角度
     private float verticalAngle = 20f;    // 垂直旋转角度
     private float currentDistance;        // 当前距离
-    private Vector3 currentVelocity = Vector3.zero;  // SmoothDamp速度
     private Dictionary<Renderer, Material[]> originalMaterials = new Dictionary<Renderer, Material[]>();
     private Dictionary<Renderer, Material[]> transparentMaterials = new Dictionary<Renderer, Material[]>();
     private HashSet<Renderer> currentObstacles = new HashSet<Renderer>();
@@ -52,9 +50,9 @@ public class CamaraFollow : MonoBehaviour
             verticalAngle = Mathf.Asin(direction.y / direction.magnitude) * Mathf.Rad2Deg;
         }
         
-        // 隐藏并锁定鼠标光标（可选）
-        // Cursor.lockState = CursorLockMode.Locked;
-        // Cursor.visible = false;
+        // 锁定并隐藏鼠标光标（像Minecraft一样）
+        Cursor.lockState = CursorLockMode.Locked;
+        Cursor.visible = false;
     }
 
     void LateUpdate()
@@ -93,18 +91,12 @@ public class CamaraFollow : MonoBehaviour
         // 根据角度计算摄像头位置
         Quaternion rotation = Quaternion.Euler(verticalAngle, horizontalAngle, 0);
         Vector3 offset = rotation * new Vector3(0, heightOffset, -currentDistance);
-        Vector3 desiredPosition = target.position + offset;
         
-        // 使用SmoothDamp平滑移动（更自然的减速效果）
-        transform.position = Vector3.SmoothDamp(transform.position, desiredPosition, ref currentVelocity, positionDamping);
+        // 直接设置位置，不使用平滑插值
+        transform.position = target.position + offset;
         
-        // 计算朝向目标的旋转（不强制，而是平滑过渡）
-        Vector3 lookDirection = target.position - transform.position;
-        if (lookDirection.sqrMagnitude > 0.001f)
-        {
-            Quaternion targetRotation = Quaternion.LookRotation(lookDirection);
-            transform.rotation = targetRotation;
-        }
+        // 直接朝向目标，不使用平滑插值
+        transform.LookAt(target.position);
     }
     
     void HandleObstacles()
