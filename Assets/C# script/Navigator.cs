@@ -213,21 +213,4 @@ public class Navigator : MonoBehaviour
             }
         }
     }
-
-    // 编辑器中显示的调试信息
-    void OnGUI()
-    {
-        if (rocketTransform != null && landingPadTransform != null && radarSphereTransform != null)
-        {
-            Vector3 toTargetVector = landingPadTransform.position - rocketTransform.position;
-            float distanceToTarget = toTargetVector.magnitude;
-            float distanceToRadar = Vector3.Distance(rocketTransform.position, radarSphereTransform.position);
-
-            GUILayout.BeginArea(new Rect(10, 10, 300, 100));
-            GUILayout.Label($"距离登陆台: {distanceToTarget:F1}m");
-            GUILayout.Label($"RadarSphere与Rocket距离: {distanceToRadar:F2}m");
-            GUILayout.Label($"设定距离: {radarDistance:F2}m");
-            GUILayout.EndArea();
-        }
-    }
 }

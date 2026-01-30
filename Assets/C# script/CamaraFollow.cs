@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 public class CamaraFollow : MonoBehaviour
@@ -15,6 +16,7 @@ public class CamaraFollow : MonoBehaviour
     [SerializeField] private float rotationReturnSpeed = 50f;       // 角度归位基础速度（度/秒）
     [SerializeField] private float maxRotationReturnSpeed = 200f;   // 角度归位最大速度（度/秒）
     [SerializeField] private float rotationTransitionTime = 0.3f;   // 角度切换过渡时间
+    [SerializeField] private float waitListTimeout = 0.2f;          // 等待列表超时时间（秒）
     
     // 基准摄像头角度偏移（Euler angles）
     private readonly Vector3 baseRotation = new Vector3(30f, 30f, 0f);
@@ -27,6 +29,22 @@ public class CamaraFollow : MonoBehaviour
     private float targetYRotation = 0f;   // 目标Y轴旋转
     private float debugTimer = 0f;        // 调试输出计时器
     
+    // 等待列表
+    private class RotationTask
+    {
+        public float deltaAngle;
+        public float addedTime;
+        
+        public RotationTask(float deltaAngle, float addedTime)
+        {
+            this.deltaAngle = deltaAngle;
+            this.addedTime = addedTime;
+        }
+    }
+    
+    private Queue<RotationTask> rotationWaitList = new Queue<RotationTask>();
+    private float lastRotationEndTime = 0f;  // 最后一次旋转结束的时间
+    
     /// <summary>
     /// 获取当前角度索引（供Movement使用）
     /// 返回最接近的90度整数倍索引（0=0°, 1=90°, 2=180°, 3=270°）
@@ -34,7 +52,10 @@ public class CamaraFollow : MonoBehaviour
     public int GetCurrentAngleIndex()
     {
         float normalizedAngle = (currentYRotation % 360f + 360f) % 360f;
-        return Mathf.RoundToInt(normalizedAngle / 90f) % 4;
+        // 因为旋转方向反了，索引也需要反过来
+        int rawIndex = Mathf.RoundToInt(normalizedAngle / 90f) % 4;
+        // 反转索引映射：0->0, 1->3, 2->2, 3->1
+        return (4 - rawIndex) % 4;
     }
 
     void Start()
@@ -79,9 +100,55 @@ public class CamaraFollow : MonoBehaviour
     {
         if (target == null) return;
         
+        ProcessWaitList();
         HandleAngleSwitch();
         HandleDistanceControl();
         UpdateCameraPosition();
+    }
+    
+    /// <summary>
+    /// 处理等待列表
+    /// </summary>
+    void ProcessWaitList()
+    {
+        // 如果不在旋转且等待列表有任务，检查是否可以执行
+        if (!isTransitioning && rotationWaitList.Count > 0)
+        {
+            // 检查最早的任务是否超时
+            RotationTask task = rotationWaitList.Peek();
+            float taskAge = Time.time - task.addedTime;
+            
+            if (taskAge <= waitListTimeout)
+            {
+                // 未超时，执行任务
+                rotationWaitList.Dequeue();
+                StartTransition(task.deltaAngle);
+                Debug.Log($"[CamaraFollow] 从等待列表执行旋转任务: {task.deltaAngle:F0}°, 等待时间: {taskAge:F3}秒");
+            }
+            else
+            {
+                // 超时，移除任务
+                rotationWaitList.Dequeue();
+                Debug.Log($"[CamaraFollow] 移除超时任务: {task.deltaAngle:F0}°, 等待时间: {taskAge:F3}秒");
+            }
+        }
+        
+        // 清理所有超时的任务
+        while (rotationWaitList.Count > 0)
+        {
+            RotationTask task = rotationWaitList.Peek();
+            float taskAge = Time.time - task.addedTime;
+            
+            if (taskAge > waitListTimeout)
+            {
+                rotationWaitList.Dequeue();
+                Debug.Log($"[CamaraFollow] 清理超时任务: {task.deltaAngle:F0}°, 等待时间: {taskAge:F3}秒");
+            }
+            else
+            {
+                break; // 队列前面的任务未超时，后面的肯定也没超时
+            }
+        }
     }
     
     /// <summary>
@@ -113,16 +180,33 @@ public class CamaraFollow : MonoBehaviour
     /// </summary>
     void HandleAngleSwitch()
     {
-        // Q键：逆时针旋转90°（从当前角度加90°）
-        if (Input.GetKeyDown(KeyCode.Q))
-        {
-            StartTransition(90f);
-        }
+        // 检测按键持续按下状态
+        bool qPressed = Input.GetKey(KeyCode.Q);
+        bool ePressed = Input.GetKey(KeyCode.E);
         
-        // E键：顺时针旋转90°（从当前角度减90°）
-        if (Input.GetKeyDown(KeyCode.E))
+        // 如果按住Q或E，且不在旋转中，立即开始旋转
+        if (!isTransitioning)
         {
-            StartTransition(-90f);
+            if (qPressed)
+            {
+                RequestRotation(-90f); // Q键：顺时针旋转90°
+            }
+            else if (ePressed)
+            {
+                RequestRotation(90f); // E键：逆时针旋转90°
+            }
+        }
+        // 如果正在旋转但按键首次按下，加入等待列表
+        else
+        {
+            if (Input.GetKeyDown(KeyCode.Q))
+            {
+                RequestRotation(-90f);
+            }
+            else if (Input.GetKeyDown(KeyCode.E))
+            {
+                RequestRotation(90f);
+            }
         }
         
         // 更新过渡状态
@@ -133,7 +217,29 @@ public class CamaraFollow : MonoBehaviour
             {
                 isTransitioning = false;
                 currentYRotation = targetYRotation; // 过渡完成，更新当前角度
+                lastRotationEndTime = Time.time; // 记录旋转结束时间
+                Debug.Log($"[CamaraFollow] 旋转完成，当前角度: {currentYRotation:F1}°");
             }
+        }
+    }
+    
+    /// <summary>
+    /// 请求旋转（处理等待列表逻辑）
+    /// </summary>
+    /// <param name="deltaAngle">角度增量（正数逆时针，负数顺时针）</param>
+    void RequestRotation(float deltaAngle)
+    {
+        if (!isTransitioning)
+        {
+            // 不在旋转，直接开始
+            StartTransition(deltaAngle);
+            Debug.Log($"[CamaraFollow] 直接开始旋转: {deltaAngle:F0}°");
+        }
+        else
+        {
+            // 正在旋转，加入等待列表
+            rotationWaitList.Enqueue(new RotationTask(deltaAngle, Time.time));
+            Debug.Log($"[CamaraFollow] 旋转中，任务加入等待列表: {deltaAngle:F0}°, 队列长度: {rotationWaitList.Count}");
         }
     }
     
